@@ -131,7 +131,28 @@ python scripts/wiki/lint.py --fix    # report + print LLM fix prompt
 
 ---
 
-## Commands
+## Slash Commands (Skills)
+
+Run `/help` inside Claude Code to see all available commands.
+
+```
+/wiki:ingest <path|url>              Ingest a source, update wiki pages
+/wiki:query [--file-answer] <q>      Answer from the wiki; optionally file it
+/wiki:lint                           Health-check + fix wiki issues
+/wiki:new-page <type> <title>        Create a typed wiki page stub
+
+/dev:commit [subject]                Clean, scoped commit with type prefix
+/dev:review [base..head]             Diff review against Karpathy philosophy
+/dev:test [filter]                   Run tests, diagnose failures
+/dev:standup [since]                 Standup summary from git log
+/dev:cleanup                         Find dead code and orphaned files
+```
+
+Skill definitions live in `.claude/commands/`. Add new skills as `.md` files there.
+
+---
+
+## Project Commands
 
 > Fill in the actual commands for this project.
 
