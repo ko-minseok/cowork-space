@@ -1,0 +1,29 @@
+{
+  "description": "cowork-space review rules",
+  "include": [
+    "src/**/*.py",
+    "src/**/*.ts",
+    "src/**/*.js",
+    "scripts/**/*.py",
+    ".claude/commands/**/*.md",
+    ".claude/hooks/**/*.sh"
+  ],
+  "exclude": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/node_modules/**",
+    "**/.gitkeep",
+    "dist/**",
+    "wiki/**",
+    "sources/**",
+    "docs/**"
+  ],
+  "focus": [
+    "correctness",
+    "security",
+    "thread-safety",
+    "null-dereference",
+    "sql-injection",
+    "xss"
+  ]
+}

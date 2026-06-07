@@ -33,6 +33,14 @@ fi
 # Persist PYTHONPATH so scripts resolve sibling imports without pip install
 echo 'export PYTHONPATH="${CLAUDE_PROJECT_DIR:-.}:${PYTHONPATH:-}"' >> "${CLAUDE_ENV_FILE:-/dev/null}"
 
+# Ensure open-code-review CLI is available
+if ! command -v ocr &>/dev/null; then
+  echo "[session-start] Installing open-code-review..."
+  npm install -g @alibaba-group/open-code-review --silent
+else
+  echo "[session-start] ocr $(ocr --version 2>/dev/null | head -1) already installed."
+fi
+
 echo "[session-start] Running wiki lint..."
 python3 scripts/wiki/lint.py && echo "[session-start] Wiki healthy." || echo "[session-start] Wiki issues found — run /wiki:lint to fix."
 

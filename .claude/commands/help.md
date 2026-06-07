@@ -18,7 +18,8 @@ Print the following table exactly as shown, then stop.
 | Command | Argument | Purpose |
 |---------|----------|---------|
 | `/dev:commit` | `[subject line]` | Create a clean, scoped git commit |
-| `/dev:review` | `[base..head]` | Review the current diff for real problems |
+| `/dev:review` | `[base..head]` | Quick diff review against Karpathy philosophy |
+| `/dev:ocr` | `[--from <base> --to <head> \| --commit <sha>]` | Deep AI code review with line-level comments (open-code-review) |
 | `/dev:test` | `[filter]` | Run the test suite and diagnose failures |
 | `/dev:standup` | `[since period]` | Generate a standup from recent git activity |
 | `/dev:cleanup` | *(none)* | Find dead code, stale comments, orphaned files |

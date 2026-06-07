@@ -1,0 +1,204 @@
+name: AI Code Review (open-code-review)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: ocr-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  code-review:
+    # PR 이벤트이거나, PR 코멘트에서 트리거 키워드가 포함된 경우에만 실행
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request != null &&
+       contains(fromJSON('["/open-code-review", "@open-code-review"]'), github.event.comment.body))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Get PR context
+        id: pr-context
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let pr;
+            if (context.eventName === 'pull_request') {
+              pr = context.payload.pull_request;
+            } else {
+              const { data } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.issue.number,
+              });
+              pr = data;
+            }
+            core.setOutput('base_ref', pr.base.ref);
+            core.setOutput('head_ref', pr.head.ref);
+            core.setOutput('head_sha', pr.head.sha);
+            core.setOutput('title', pr.title);
+            core.setOutput('pr_number', pr.number);
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr-context.outputs.head_sha }}
+          fetch-depth: 0
+
+      - name: Install open-code-review
+        run: npm install -g @alibaba-group/open-code-review
+
+      - name: Configure LLM
+        env:
+          OCR_LLM_URL: ${{ secrets.OCR_LLM_URL }}
+          OCR_LLM_AUTH_TOKEN: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          OCR_LLM_MODEL: ${{ secrets.OCR_LLM_MODEL || 'claude-sonnet-4-6' }}
+          OCR_USE_ANTHROPIC: ${{ secrets.OCR_LLM_USE_ANTHROPIC || 'true' }}
+        run: |
+          ocr config set llm.url "$OCR_LLM_URL"
+          ocr config set llm.auth_token "$OCR_LLM_AUTH_TOKEN"
+          ocr config set llm.model "$OCR_LLM_MODEL"
+          ocr config set llm.use_anthropic "$OCR_USE_ANTHROPIC"
+          ocr config set llm.thinking.enabled false
+
+      - name: Run code review
+        id: review
+        env:
+          OCR_LLM_URL: ${{ secrets.OCR_LLM_URL }}
+          OCR_LLM_AUTH_TOKEN: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+        run: |
+          ocr review \
+            --audience agent \
+            --from "origin/${{ steps.pr-context.outputs.base_ref }}" \
+            --to "origin/${{ steps.pr-context.outputs.head_ref }}" \
+            --background "PR: ${{ steps.pr-context.outputs.title }}" \
+            --format json \
+            --concurrency 4 \
+            > review_output.json 2>&1 || true
+
+          echo "review_file=review_output.json" >> $GITHUB_OUTPUT
+
+      - name: Post review comments
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const pr_number = parseInt('${{ steps.pr-context.outputs.pr_number }}');
+            const head_sha = '${{ steps.pr-context.outputs.head_sha }}';
+
+            let raw;
+            try {
+              raw = fs.readFileSync('review_output.json', 'utf8');
+            } catch (e) {
+              console.log('No review output file found.');
+              return;
+            }
+
+            // Extract JSON array from output (ocr may prefix with log lines)
+            const jsonMatch = raw.match(/\[[\s\S]*\]/);
+            if (!jsonMatch) {
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr_number,
+                commit_id: head_sha,
+                body: 'No comments generated. Looks good to me. ✅',
+                event: 'COMMENT',
+              });
+              return;
+            }
+
+            const comments = JSON.parse(jsonMatch[0]);
+            if (!comments.length) {
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr_number,
+                commit_id: head_sha,
+                body: 'No comments generated. Looks good to me. ✅',
+                event: 'COMMENT',
+              });
+              return;
+            }
+
+            // Separate inline comments (have line info) from general ones
+            const inline = comments.filter(c => c.path && c.line);
+            const general = comments.filter(c => !c.path || !c.line);
+
+            const reviewComments = inline.map(c => ({
+              path: c.path,
+              line: c.line,
+              side: 'RIGHT',
+              body: `**[${(c.severity || 'info').toUpperCase()}]** ${c.body || c.message || c.content}`,
+            }));
+
+            const summaryLines = general.map(c =>
+              `- **[${(c.severity || 'info').toUpperCase()}]** ${c.body || c.message || c.content}`
+            );
+            const summaryBody = summaryLines.length
+              ? `## General findings\n\n${summaryLines.join('\n')}`
+              : '';
+
+            // Try batch post; fall back to individual if it fails
+            let successCount = 0;
+            let failCount = 0;
+
+            if (reviewComments.length > 0) {
+              try {
+                await github.rest.pulls.createReview({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr_number,
+                  commit_id: head_sha,
+                  body: summaryBody,
+                  event: 'COMMENT',
+                  comments: reviewComments,
+                });
+                successCount = reviewComments.length;
+              } catch (batchErr) {
+                console.log('Batch post failed, falling back to individual comments:', batchErr.message);
+                for (const comment of reviewComments) {
+                  try {
+                    await github.rest.pulls.createReviewComment({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      pull_number: pr_number,
+                      commit_id: head_sha,
+                      path: comment.path,
+                      line: comment.line,
+                      side: comment.side,
+                      body: comment.body,
+                    });
+                    successCount++;
+                  } catch (e) {
+                    console.log(`Failed to post comment on ${comment.path}:${comment.line}:`, e.message);
+                    failCount++;
+                  }
+                }
+              }
+            }
+
+            // Post summary comment
+            const summary = [
+              `## AI Code Review Summary`,
+              ``,
+              `- 📝 Inline comments: **${successCount}** posted${failCount ? `, ${failCount} failed` : ''}`,
+              `- 💬 General findings: **${general.length}**`,
+              ``,
+              summaryBody,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr_number,
+              body: summary,
+            });
