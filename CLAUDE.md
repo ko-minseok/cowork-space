@@ -42,15 +42,92 @@ Every experiment must be reproducible from a single command. Seed random generat
 
 ```
 .
-├── CLAUDE.md          # This file
-├── README.md          # Human-facing overview
+├── CLAUDE.md                  # This file
+├── README.md                  # Human-facing overview
 ├── .claude/
-│   └── settings.json  # Claude Code permissions & hooks
-├── src/               # Source code
-├── tests/             # Tests
-├── scripts/           # One-off utility scripts
-└── docs/              # Additional documentation
+│   └── settings.json          # Claude Code permissions & hooks
+├── sources/                   # Raw, immutable input documents (never edit)
+├── wiki/                      # LLM-maintained knowledge base
+│   ├── schema.md              # Page conventions and templates
+│   ├── index.md               # Content catalog (updated on every ingest)
+│   ├── log.md                 # Append-only operation log
+│   ├── concepts/              # Idea / technique pages
+│   ├── entities/              # Person / org / tool pages
+│   ├── projects/              # Paper / codebase / product pages
+│   └── qa/                    # Filed Q&A answers
+├── src/                       # Application source code
+├── tests/                     # Tests
+├── scripts/
+│   └── wiki/
+│       ├── ingest.py          # Prepare ingest prompt for a source file
+│       ├── query.py           # Prepare query prompt against the wiki
+│       └── lint.py            # Static health-check; --fix prints fix prompt
+└── docs/                      # Additional documentation
 ```
+
+---
+
+## LLM Wiki
+
+This repository contains a persistent, LLM-maintained knowledge base in `wiki/`.
+Inspired by [Karpathy's LLM wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
+
+### Core idea
+
+> The wiki is a compounding artifact. Each ingest makes it richer.
+> The LLM handles bookkeeping; the human handles curation.
+
+Three layers:
+
+| Layer | Location | Mutability |
+|-------|----------|------------|
+| Raw sources | `sources/` | **Immutable** — never edit |
+| Wiki pages | `wiki/` | LLM-maintained markdown |
+| Schema | `wiki/schema.md` + this file | Human-curated |
+
+### Three operations
+
+#### 1. Ingest
+Add a new source and update relevant wiki pages.
+
+```bash
+python scripts/wiki/ingest.py sources/my-paper.pdf
+```
+
+Paste the printed prompt into Claude Code. Claude will:
+- Update or create wiki pages
+- Add cross-references and relationships
+- Update `wiki/index.md`
+- Append to `wiki/log.md`
+
+#### 2. Query
+Ask a question and get an answer grounded in the wiki.
+
+```bash
+# Answer only
+python scripts/wiki/query.py "What is RLHF?"
+
+# Answer and file it as a Q&A page
+python scripts/wiki/query.py "What is RLHF?" --file-answer
+```
+
+#### 3. Lint
+Check the wiki for broken links, orphans, schema drift, and empty stubs.
+
+```bash
+python scripts/wiki/lint.py          # report
+python scripts/wiki/lint.py --fix    # report + print LLM fix prompt
+```
+
+### AI agent rules for wiki edits
+
+1. **Read `wiki/schema.md` first.** Every page must follow the templates.
+2. **Cite sources.** Every factual claim needs a Sources entry linking to `sources/`.
+3. **Use `[[Page Name]]` for internal links.** Never use relative paths for cross-references.
+4. **Append-only log.** Add new entries to the top of `wiki/log.md`. Never edit past entries.
+5. **Contradiction policy.** Never silently discard a claim. Flag conflicts with `> ⚠️ Contradiction:`.
+6. **Low-confidence claims.** Mark inline with `[low confidence]` and set the confidence tier.
+7. **Update the index.** After any create/update, refresh the relevant row in `wiki/index.md`.
 
 ---
 
