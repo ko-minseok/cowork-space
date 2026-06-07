@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(rg *)",
+      "Bash(python *)",
+      "Bash(pytest *)",
+      "Bash(npm *)",
+      "Bash(node *)"
+    ],
+    "deny": []
+  }
+}
