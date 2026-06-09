@@ -56,7 +56,7 @@ def load_session(session_id: str) -> list[dict] | None:
 
 def list_session_ids() -> list[str]:
     return sorted(
-        p.stem for p in sessions_dir().glob("*.json"),
+        (p.stem for p in sessions_dir().glob("*.json")),
         key=lambda s: (sessions_dir() / f"{s}.json").stat().st_mtime,
         reverse=True,
     )
