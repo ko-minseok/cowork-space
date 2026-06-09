@@ -8,34 +8,126 @@
 </head>
 <body>
   <div class="layout">
-    <!-- Sidebar -->
+
+    <!-- ── Left sidebar ─────────────────────────────────────────── -->
     <aside class="sidebar">
       <div class="sidebar-header">
         <h2>Claude Agent</h2>
-        <button id="new-session-btn" class="btn-icon" title="New session">＋</button>
+        <div class="header-actions">
+          <button id="new-session-btn" class="btn-icon" title="New session">＋</button>
+          <div id="api-status" class="status-dot" title="Checking…"></div>
+        </div>
       </div>
 
-      <section class="config-section">
-        <label>Working directory</label>
-        <input id="cwd" type="text" placeholder="/home/user/project" />
+      <!-- Tab bar -->
+      <nav class="sidebar-tabs">
+        <button class="tab active" data-tab="config">Config</button>
+        <button class="tab" data-tab="features">Features</button>
+        <button class="tab" data-tab="git">Git</button>
+        <button class="tab" data-tab="progress">Progress</button>
+      </nav>
 
-        <label>System prompt</label>
-        <textarea id="system-prompt" rows="3" placeholder="Optional system instructions…"></textarea>
+      <!-- ── CONFIG tab ── -->
+      <div class="tab-panel active" id="tab-config">
+        <section class="config-section">
+          <label>Working directory</label>
+          <input id="cwd" type="text" placeholder="/home/user/project" />
 
-        <label>Max turns</label>
-        <input id="max-turns" type="number" value="20" min="1" max="100" />
+          <label>System prompt</label>
+          <textarea id="system-prompt" rows="3" placeholder="Optional system instructions…"></textarea>
 
-        <label>Allowed tools</label>
-        <div class="tool-grid" id="tool-grid"></div>
-      </section>
+          <label>Max turns</label>
+          <input id="max-turns" type="number" value="20" min="1" max="100" />
 
-      <section class="session-list-section">
-        <p class="section-label">Sessions</p>
-        <ul id="session-list"></ul>
-      </section>
+          <label>Log to progress file</label>
+          <label class="toggle">
+            <input type="checkbox" id="log-progress" checked />
+            <span class="toggle-track"></span>
+            <span class="toggle-label">Append result to claude-progress.txt</span>
+          </label>
+
+          <label>Allowed tools</label>
+          <div class="tool-grid" id="tool-grid"></div>
+        </section>
+
+        <section class="session-list-section">
+          <p class="section-label">Sessions</p>
+          <ul id="session-list"></ul>
+        </section>
+      </div>
+
+      <!-- ── FEATURES tab ── -->
+      <div class="tab-panel" id="tab-features">
+        <div class="panel-toolbar">
+          <span class="section-label">Feature list</span>
+          <button class="btn-sm" id="add-feature-btn">+ Add</button>
+        </div>
+
+        <!-- Add/edit form (hidden by default) -->
+        <div id="feature-form" class="feature-form hidden">
+          <input id="ft-title" placeholder="Title" />
+          <select id="ft-status">
+            <option value="todo">Todo</option>
+            <option value="in_progress">In progress</option>
+            <option value="done">Done</option>
+            <option value="blocked">Blocked</option>
+          </select>
+          <select id="ft-priority">
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="low">Low</option>
+          </select>
+          <textarea id="ft-notes" rows="2" placeholder="Notes…"></textarea>
+          <div class="form-actions">
+            <button class="btn-sm" id="ft-save-btn">Save</button>
+            <button class="btn-sm btn-ghost" id="ft-cancel-btn">Cancel</button>
+          </div>
+        </div>
+
+        <ul id="feature-list" class="feature-list"></ul>
+      </div>
+
+      <!-- ── GIT tab ── -->
+      <div class="tab-panel" id="tab-git">
+        <div class="panel-toolbar">
+          <span class="section-label">Repository</span>
+          <button class="btn-sm" id="git-refresh-btn">↻</button>
+        </div>
+
+        <div id="git-status-box" class="code-box">Loading…</div>
+
+        <div class="panel-toolbar" style="margin-top:12px">
+          <span class="section-label">Recent commits</span>
+        </div>
+        <ul id="git-log-list" class="git-log"></ul>
+
+        <details class="collapsible">
+          <summary>Clone repository</summary>
+          <div class="clone-form">
+            <input id="clone-url" placeholder="https://github.com/user/repo" />
+            <input id="clone-branch" placeholder="Branch (default: main)" />
+            <button class="btn-sm" id="clone-btn">Clone</button>
+          </div>
+        </details>
+
+        <details class="collapsible">
+          <summary>Diff (unstaged)</summary>
+          <pre id="git-diff-box" class="code-box diff-box">—</pre>
+        </details>
+      </div>
+
+      <!-- ── PROGRESS tab ── -->
+      <div class="tab-panel" id="tab-progress">
+        <div class="panel-toolbar">
+          <span class="section-label">claude-progress.txt</span>
+          <button class="btn-sm" id="progress-refresh-btn">↻</button>
+        </div>
+        <pre id="progress-content" class="code-box progress-box">Loading…</pre>
+      </div>
+
     </aside>
 
-    <!-- Main chat -->
+    <!-- ── Main chat ─────────────────────────────────────────────── -->
     <main class="chat-area">
       <div id="messages" class="messages"></div>
 
@@ -43,12 +135,13 @@
         <textarea
           id="prompt-input"
           rows="3"
-          placeholder="Describe a task for the agent…"
+          placeholder="Describe a task for the agent… (Ctrl+Enter to send)"
           autofocus
         ></textarea>
         <button type="submit" id="send-btn">Send</button>
       </form>
     </main>
+
   </div>
 
   <script src="/static/app.js"></script>
