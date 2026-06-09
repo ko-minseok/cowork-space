@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claude Agent</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>Claude Agent</h2>
+        <button id="new-session-btn" class="btn-icon" title="New session">＋</button>
+      </div>
+
+      <section class="config-section">
+        <label>Working directory</label>
+        <input id="cwd" type="text" placeholder="/home/user/project" />
+
+        <label>System prompt</label>
+        <textarea id="system-prompt" rows="3" placeholder="Optional system instructions…"></textarea>
+
+        <label>Max turns</label>
+        <input id="max-turns" type="number" value="20" min="1" max="100" />
+
+        <label>Allowed tools</label>
+        <div class="tool-grid" id="tool-grid"></div>
+      </section>
+
+      <section class="session-list-section">
+        <p class="section-label">Sessions</p>
+        <ul id="session-list"></ul>
+      </section>
+    </aside>
+
+    <!-- Main chat -->
+    <main class="chat-area">
+      <div id="messages" class="messages"></div>
+
+      <form id="chat-form" class="input-row">
+        <textarea
+          id="prompt-input"
+          rows="3"
+          placeholder="Describe a task for the agent…"
+          autofocus
+        ></textarea>
+        <button type="submit" id="send-btn">Send</button>
+      </form>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
